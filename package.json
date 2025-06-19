@@ -1,0 +1,14 @@
+{
+  "name": "vetexotic-chatbot",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "react": "18.x",
+    "next": "13.x",
+    "openai": "^4.0.0"
+  }
+}
