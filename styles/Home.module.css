@@ -41,7 +41,7 @@
   white-space: pre-wrap;
 }
 
-textarea {
+:global(textarea) {
   margin-top: auto;
   resize: none;
   border-radius: 12px;
