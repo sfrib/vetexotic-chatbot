@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import styles from "./Chat.module.css";
+import EmojiPicker from "emoji-picker-react"; // npm install emoji-picker-react
 
 function formatMessage(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   return text.split(urlRegex).map((part, i) => {
     if (urlRegex.test(part)) {
-      const cleanUrl = part.replace(/[)\]\}.,!?]+$/, ""); // Odstraň koncové znaky
+      const cleanUrl = part.replace(/[)\]\}.,!?]+$/, "");
       return (
         <a key={i} href={cleanUrl} target="_blank" rel="noopener noreferrer">
           {cleanUrl}
@@ -42,6 +43,8 @@ export default function Chat() {
 
   const [loading, setLoading] = useState(false);
   const [typingText, setTypingText] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const chatEndRef = useRef(null);
 
@@ -131,6 +134,15 @@ export default function Chat() {
     setLoading(false);
   };
 
+  const handleEmojiClick = (emojiObject) => {
+    setInput((prev) => prev + emojiObject.emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <div className={styles.chatContainer}>
       <div className={styles.chatBox}>
@@ -143,9 +155,7 @@ export default function Chat() {
           >
             <div className={styles.bubble}>
               {formatMessage(msg.content)}
-              <div className={styles.timestamp}>
-                {formatTime(msg.timestamp)}
-              </div>
+              <div className={styles.timestamp}>{formatTime(msg.timestamp)}</div>
             </div>
           </div>
         ))}
@@ -154,9 +164,7 @@ export default function Chat() {
           <div className={styles.message + " " + styles.assistant}>
             <div className={styles.bubble}>
               {formatMessage(typingText)}
-              <div className={styles.timestamp}>
-                {formatTime(Date.now())}
-              </div>
+              <div className={styles.timestamp}>{formatTime(Date.now())}</div>
             </div>
           </div>
         )}
@@ -165,11 +173,31 @@ export default function Chat() {
       </div>
 
       <form className={styles.inputForm} onSubmit={handleSubmit}>
+        <button
+          type="button"
+          className={styles.button}
+          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+        >
+          😊
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          onClick={handleUploadClick}
+        >
+          📎
+        </button>
+        <input
+          type="file"
+          style={{ display: "none" }}
+          ref={fileInputRef}
+          onChange={(e) => console.log("Soubor vybrán:", e.target.files[0])}
+        />
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Napiš dotaz sem…"
+          placeholder="Napiš zprávu…"
           disabled={loading}
           className={styles.input}
         />
@@ -178,9 +206,14 @@ export default function Chat() {
           disabled={loading || !input.trim()}
           className={styles.button}
         >
-          Poslat
+          📤
         </button>
       </form>
+      {showEmojiPicker && (
+        <div style={{ position: "absolute", bottom: "60px", right: "20px" }}>
+          <EmojiPicker onEmojiClick={handleEmojiClick} />
+        </div>
+      )}
     </div>
   );
 }
