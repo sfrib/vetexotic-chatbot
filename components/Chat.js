@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import styles from "./Chat.module.css";
 
+const EXPIRATION_TIME = 30 * 60 * 1000; // 30 minut
+
 function formatMessage(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   return text.split(urlRegex).map((part, i) =>
@@ -16,16 +18,28 @@ function formatMessage(text) {
 
 export default function Chat() {
   const [input, setInput] = useState("");
-  const [chatHistory, setChatHistory] = useState([
-    {
-      role: "assistant",
-      content:
-        "Ahoj! 🦎 Jsem Alfonso, virtuální asistent kliniky VetExotic. Pomůžu ti s informacemi o otevírací době, objednání, pohotovosti nebo orientačních cenách. Pokud je situace akutní, napiš mi hned, a nasměruji tě správným směrem. 😊",
-    },
-  ]);
+  const [chatHistory, setChatHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem("chatHistory");
+      const lastActive = localStorage.getItem("chatLastActive");
+      if (saved && lastActive) {
+        const lastActiveTime = parseInt(lastActive, 10);
+        if (Date.now() - lastActiveTime < EXPIRATION_TIME) {
+          return JSON.parse(saved);
+        }
+      }
+    } catch {}
+    return [
+      {
+        role: "assistant",
+        content:
+          "Ahoj! 🦎 Jsem Alfonso, virtuální asistent kliniky VetExotic. Pomůžu ti s informacemi o otevírací době, objednání, pohotovosti nebo orientačních cenách. Pokud je situace akutní, napiš mi hned, a nasměruji tě správným směrem. 😊",
+      },
+    ];
+  });
   const [loading, setLoading] = useState(false);
 
-  // Nový stav pro animované psaní asistenta
+  // Animace psaní asistenta
   const [typingText, setTypingText] = useState("");
   const typingTimeoutRef = useRef(null);
 
@@ -34,7 +48,12 @@ export default function Chat() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory, typingText, loading]);
 
-  // Animace psaní textu, Promise pro čekání
+  // Ukládání do localStorage při změně historie a času
+  useEffect(() => {
+    localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
+    localStorage.setItem("chatLastActive", Date.now().toString());
+  }, [chatHistory]);
+
   function animateTyping(fullText) {
     return new Promise((resolve) => {
       let i = 0;
@@ -46,7 +65,7 @@ export default function Chat() {
           clearInterval(typingTimeoutRef.current);
           resolve();
         }
-      }, 20); // rychlost psaní, uprav dle libosti
+      }, 20);
     });
   }
 
@@ -73,21 +92,14 @@ export default function Chat() {
       const data = await res.json();
 
       if (res.ok) {
-        // Místo okamžitého přidání odpovědi ji animuj
         await animateTyping(data.reply);
         setChatHistory([...newHistory, { role: "assistant", content: data.reply }]);
         setTypingText("");
       } else {
-        setChatHistory([
-          ...newHistory,
-          { role: "assistant", content: "Chyba: " + data.error },
-        ]);
+        setChatHistory([...newHistory, { role: "assistant", content: "Chyba: " + data.error }]);
       }
     } catch (e) {
-      setChatHistory([
-        ...newHistory,
-        { role: "assistant", content: "Chyba připojení: " + e.message },
-      ]);
+      setChatHistory([...newHistory, { role: "assistant", content: "Chyba připojení: " + e.message }]);
     }
     setLoading(false);
   };
