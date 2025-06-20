@@ -1,6 +1,11 @@
 import { useState } from "react";
 import Head from "next/head";
 import { Configuration, OpenAIApi } from "openai";
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export default function Home() {
   const [messages, setMessages] = useState([
