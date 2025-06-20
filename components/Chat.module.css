@@ -1,7 +1,7 @@
 .chatContainer {
   max-width: 600px;
   margin: 0 auto;
-  font-family: "Segoe UI", sans-serif;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   display: flex;
   flex-direction: column;
   height: 90vh;
@@ -19,6 +19,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  background: white;
 }
 
 .message {
@@ -63,104 +64,86 @@
   font-size: 11px;
   color: #888;
   margin-top: 4px;
+  user-select: none;
 }
 
 .avatar {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   margin-right: 8px;
+  user-select: none;
+  flex-shrink: 0;
 }
 
 .assistantRow {
   display: flex;
   align-items: flex-start;
+  gap: 8px;
 }
 
-.assistant .bubble {
-  margin-left: 36px;
-}
-
-.assistant .name {
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 2px;
-  margin-left: 36px;
+.assistant .bubbleTyping {
+  background-color: #e4e6eb;
+  font-style: italic;
+  padding: 10px 14px;
+  border-radius: 20px;
+  max-width: 70%;
   color: #555;
 }
 
 .inputForm {
   display: flex;
   align-items: center;
-  padding: 10px;
+  padding: 10px 16px;
   background: #fff;
   border-top: 1px solid #ccc;
-  gap: 6px;
+  gap: 8px;
 }
 
 .input {
   flex-grow: 1;
-  padding: 10px;
+  padding: 10px 16px;
   border-radius: 20px;
   border: 1px solid #ccc;
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
   background: #f0f2f5;
 }
 
+.input:focus {
+  border-color: #0084ff;
+  box-shadow: 0 0 5px #0084ffaa;
+}
+
 .button {
-  background: none;
+  background: #0084ff;
   border: none;
   font-size: 20px;
+  color: white;
   cursor: pointer;
-  padding: 6px;
-  color: #555;
-  transition: background 0.2s;
-}
-
-.button:hover {
-  background: rgba(0, 0, 0, 0.05);
+  padding: 10px 14px;
   border-radius: 50%;
-}
-
-.typingIndicator {
+  transition: background 0.2s ease-in-out;
   display: flex;
   align-items: center;
-  margin-left: 36px;
-  color: #666;
-  font-style: italic;
-  font-size: 14px;
-  gap: 4px;
-  padding: 4px 12px;
-  background: #e4e6eb;
-  border-radius: 20px;
-  max-width: 200px;
+  justify-content: center;
 }
 
-.typingDots {
-  display: flex;
-  gap: 2px;
-  margin-left: 4px;
+.button:disabled {
+  background: #999;
+  cursor: not-allowed;
 }
 
-.typingDots span {
-  animation: blink 1.4s infinite both;
-  font-size: 18px;
+.button:hover:not(:disabled) {
+  background: #005ecb;
 }
 
-.typingDots span:nth-child(2) {
-  animation-delay: 0.2s;
+.link {
+  color: #0066cc;
+  text-decoration: underline;
 }
 
-.typingDots span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes blink {
-  0%, 80%, 100% {
-    opacity: 0;
-  }
-  40% {
-    opacity: 1;
-  }
+.link:hover {
+  color: #004a99;
+  text-decoration: none;
 }
