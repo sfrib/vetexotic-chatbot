@@ -1,5 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
-import styles from "./Chat.module.css";
+import styles from "./Chat.module.css"; // přidej stylopis, nebo uprav podle potřeby
+
+function formatMessage(text) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.split(urlRegex).map((part, i) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer">
+          {part}
+        </a>
+      );
+    } else {
+      return <span key={i}>{part}</span>;
+    }
+  });
+}
 
 export default function Chat() {
   const [input, setInput] = useState("");
@@ -7,26 +22,24 @@ export default function Chat() {
     {
       role: "assistant",
       content:
-        "Ahoj! Jsem Alfonso – virtuální asistent kliniky VetExotic. Pomůžu ti najít info o ordinační době, cenách nebo pohotovosti. Napiš mi, s čím ti mohu pomoci. 😊",
+        "Ahoj! 🦎 Jsem Alfonso, virtuální asistent kliniky VetExotic. Pomůžu ti s informacemi o otevírací době, objednání, pohotovosti nebo orientačních cenách. Pokud je situace akutní, napiš mi hned, a nasměruji tě správným směrem. 😊",
     },
   ]);
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const chatEndRef = useRef(null);
 
   useEffect(() => {
-    scrollToBottom();
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory, loading]);
 
-  async function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
 
-    const newUserMessage = { role: "user", content: input };
-    setChatHistory((prev) => [...prev, newUserMessage]);
+    const newMessage = { role: "user", content: input };
+    const newHistory = [...chatHistory, newMessage];
+
+    setChatHistory(newHistory);
     setInput("");
     setLoading(true);
 
@@ -36,31 +49,28 @@ export default function Chat() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: input,
-          history: [...chatHistory, newUserMessage],
+          history: newHistory,
         }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setChatHistory((prev) => [
-          ...prev,
-          { role: "assistant", content: data.reply },
-        ]);
+        setChatHistory([...newHistory, { role: "assistant", content: data.reply }]);
       } else {
-        setChatHistory((prev) => [
-          ...prev,
-          { role: "assistant", content: "❌ Chyba: " + data.error },
+        setChatHistory([
+          ...newHistory,
+          { role: "assistant", content: "Chyba: " + data.error },
         ]);
       }
-    } catch (err) {
-      setChatHistory((prev) => [
-        ...prev,
-        { role: "assistant", content: "❌ Chyba spojení: " + err.message },
+    } catch (e) {
+      setChatHistory([
+        ...newHistory,
+        { role: "assistant", content: "Chyba připojení: " + e.message },
       ]);
     }
 
     setLoading(false);
-  }
+  };
 
   return (
     <div className={styles.chatContainer}>
@@ -72,31 +82,27 @@ export default function Chat() {
               msg.role === "user" ? styles.user : styles.assistant
             }`}
           >
-            <div className={styles.bubble}>{msg.content}</div>
+            <div className={styles.bubble}>{formatMessage(msg.content)}</div>
           </div>
         ))}
         {loading && (
           <div className={styles.message + " " + styles.assistant}>
-            <div className={styles.bubbleTyping}>
-              Alfonso píše<span className={styles.dot}>.</span>
-              <span className={styles.dot}>.</span>
-              <span className={styles.dot}>.</span>
-            </div>
+            <div className={styles.bubble}>...</div>
           </div>
         )}
-        <div ref={messagesEndRef} />
+        <div ref={chatEndRef} />
       </div>
-      <form onSubmit={handleSubmit} className={styles.inputForm}>
-        <textarea
-          className={styles.input}
-          placeholder="Napiš svůj dotaz..."
+
+      <form className={styles.inputForm} onSubmit={handleSubmit}>
+        <input
+          type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          placeholder="Napiš svůj dotaz…"
           disabled={loading}
-          rows={2}
         />
-        <button className={styles.button} type="submit" disabled={loading}>
-          {loading ? "Odesílám..." : "Odeslat"}
+        <button type="submit" disabled={loading || !input.trim()}>
+          Odeslat
         </button>
       </form>
     </div>
