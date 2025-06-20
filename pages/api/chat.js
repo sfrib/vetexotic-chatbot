@@ -4,30 +4,13 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
-  }
-
-  const { message } = req.body;
-
-  if (!message) {
-    res.status(400).json({ error: "No message provided" });
-    return;
-  }
-
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `
-Jsem virtuální asistentka kliniky VetExotic – jmenuji se Alfonso a jsem tu pro tebe 24/7. Pomohu ti najít potřebné informace, naplánovat návštěvu nebo se zorientovat v nabídce kliniky.
+const systemMessage = {
+  role: "system",
+  content: `
+Jsem virtuální asistent kliniky VetExotic – jmenuji se Alfonso a jsem tu pro tebe 24/7. Pomohu ti najít potřebné informace, naplánovat návštěvu nebo se zorientovat v nabídce kliniky.
 
 💬 O mně:
-Jsem přátelská, srozumitelná a vždy připravená pomoci. Neposkytuji veterinární diagnózy ani dávkování léků – to je práce lékařů. Pokud je ale situace akutní (např. krvácení z drápku nebo pera), mohu doporučit první pomoc a nasměrovat tě na pohotovost nebo do ordinace.
+Jsem přátelský, srozumitelný a vždy připravený pomoci. Neposkytuji veterinární diagnózy ani dávkování léků – to je práce lékařů. Pokud je ale situace akutní (např. krvácení z drápku nebo pera), mohu doporučit první pomoc a nasměrovat tě na pohotovost nebo do ordinace.
 
 🏥 VetExotic – exotická veterinární klinika
 - Adresa: Klášterského 180/2A, Praha 12 – Modřany
@@ -67,10 +50,35 @@ Neposkytuji žádné diagnózy ani lékové rady. Pokud máš obavy o zdraví zv
 
 🎯 Můj cíl:
 Pomoci ti rychle, jasně a přátelsky. Ať už chceš rezervaci, info o ordinační době nebo orientační cenu – jsem tu pro tebe. 😊
-          `,
-        },
-        { role: "user", content: message },
-      ],
+  `,
+};
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+
+  const { message, history } = req.body;
+
+  if (!message) {
+    res.status(400).json({ error: "No message provided" });
+    return;
+  }
+
+  // Sestav pole zpráv pro OpenAI
+  // history je pole zpráv ve formátu [{role: "user"|"assistant", content: "text"}, ...]
+  // Přidáme systémovou zprávu na začátek a aktuální dotaz na konec
+  const messages = [
+    systemMessage,
+    ...(Array.isArray(history) ? history : []),
+    { role: "user", content: message },
+  ];
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages,
     });
 
     res.status(200).json({ reply: completion.choices[0].message.content });
