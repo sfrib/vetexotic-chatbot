@@ -1,4 +1,14 @@
 import React, { useState } from "react";
+import Chat from "../components/Chat";
+
+export default function Home() {
+  return (
+    <div>
+      <h1>VetExotic Chatbot</h1>
+      <Chat />
+    </div>
+  );
+}
 
 export default function Home() {
   const [input, setInput] = useState("");
