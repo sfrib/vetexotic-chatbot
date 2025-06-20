@@ -134,9 +134,7 @@ export default function Chat() {
             </div>
           );
         })}
-        {loading && !typingText && (
-          <div className={styles.typingIndicator}>Alfonso píše...</div>
-        )}
+        {loading && !typingText && <div className={styles.typingIndicator}>Alfonso píše...</div>}
         <div ref={chatEndRef} />
       </div>
 
@@ -154,5 +152,5 @@ export default function Chat() {
         </button>
       </form>
     </div>
-);
+  );
 }
