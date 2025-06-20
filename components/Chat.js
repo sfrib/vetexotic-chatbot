@@ -1,19 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
-import styles from "./Chat.module.css"; // přidej stylopis, nebo uprav podle potřeby
+import styles from "./Chat.module.css";
 
 function formatMessage(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  return text.split(urlRegex).map((part, i) => {
-    if (part.match(urlRegex)) {
-      return (
-        <a key={i} href={part} target="_blank" rel="noopener noreferrer">
-          {part}
-        </a>
-      );
-    } else {
-      return <span key={i}>{part}</span>;
-    }
-  });
+  return text.split(urlRegex).map((part, i) =>
+    part.match(urlRegex) ? (
+      <a key={i} href={part} target="_blank" rel="noopener noreferrer">
+        {part}
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
 }
 
 export default function Chat() {
@@ -26,11 +24,31 @@ export default function Chat() {
     },
   ]);
   const [loading, setLoading] = useState(false);
-  const chatEndRef = useRef(null);
 
+  // Nový stav pro animované psaní asistenta
+  const [typingText, setTypingText] = useState("");
+  const typingTimeoutRef = useRef(null);
+
+  const chatEndRef = useRef(null);
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatHistory, loading]);
+  }, [chatHistory, typingText, loading]);
+
+  // Animace psaní textu, Promise pro čekání
+  function animateTyping(fullText) {
+    return new Promise((resolve) => {
+      let i = 0;
+      if (typingTimeoutRef.current) clearInterval(typingTimeoutRef.current);
+      typingTimeoutRef.current = setInterval(() => {
+        i++;
+        setTypingText(fullText.substring(0, i));
+        if (i >= fullText.length) {
+          clearInterval(typingTimeoutRef.current);
+          resolve();
+        }
+      }, 20); // rychlost psaní, uprav dle libosti
+    });
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,10 +56,10 @@ export default function Chat() {
 
     const newMessage = { role: "user", content: input };
     const newHistory = [...chatHistory, newMessage];
-
     setChatHistory(newHistory);
     setInput("");
     setLoading(true);
+    setTypingText("");
 
     try {
       const res = await fetch("/api/chat", {
@@ -52,10 +70,13 @@ export default function Chat() {
           history: newHistory,
         }),
       });
-
       const data = await res.json();
+
       if (res.ok) {
+        // Místo okamžitého přidání odpovědi ji animuj
+        await animateTyping(data.reply);
         setChatHistory([...newHistory, { role: "assistant", content: data.reply }]);
+        setTypingText("");
       } else {
         setChatHistory([
           ...newHistory,
@@ -68,7 +89,6 @@ export default function Chat() {
         { role: "assistant", content: "Chyba připojení: " + e.message },
       ]);
     }
-
     setLoading(false);
   };
 
@@ -85,11 +105,12 @@ export default function Chat() {
             <div className={styles.bubble}>{formatMessage(msg.content)}</div>
           </div>
         ))}
-        {loading && (
+        {loading && typingText && (
           <div className={styles.message + " " + styles.assistant}>
-            <div className={styles.bubble}>...</div>
+            <div className={styles.bubble}>{formatMessage(typingText)}</div>
           </div>
         )}
+        {!loading && !typingText && null}
         <div ref={chatEndRef} />
       </div>
 
