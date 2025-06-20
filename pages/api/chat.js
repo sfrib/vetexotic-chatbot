@@ -1,88 +1,186 @@
-import OpenAI from "openai";
+import React, { useState, useEffect, useRef } from "react";
+import styles from "./Chat.module.css";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function formatMessage(text) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.split(urlRegex).map((part, i) => {
+    if (urlRegex.test(part)) {
+      const cleanUrl = part.replace(/[)\]\}.,!?]+$/, ""); // Odstraň koncové znaky
+      return (
+        <a key={i} href={cleanUrl} target="_blank" rel="noopener noreferrer">
+          {cleanUrl}
+        </a>
+      );
+    } else {
+      return <span key={i}>{part}</span>;
+    }
+  });
+}
 
-const systemMessage = {
-  role: "system",
-  content: `
-Jsem virtuální asistent kliniky VetExotic – jmenuji se Alfonso a jsem tu pro tebe 24/7. Pomohu ti najít potřebné informace, naplánovat návštěvu nebo se zorientovat v nabídce kliniky.
+function formatTime(timestamp) {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
 
-💬 O mně:
-Jsem přátelský, srozumitelný a vždy připravený pomoci. Neposkytuji veterinární diagnózy ani dávkování léků – to je práce lékařů. Pokud je ale situace akutní (např. krvácení z drápku nebo pera), mohu doporučit první pomoc a nasměrovat tě na pohotovost nebo do ordinace.
+export default function Chat() {
+  const [input, setInput] = useState("");
+  const [chatHistory, setChatHistory] = useState(() => {
+    const stored = localStorage.getItem("chatHistory");
+    const storedTime = localStorage.getItem("chatTimestamp");
+    if (stored && storedTime && Date.now() - storedTime < 30 * 60 * 1000) {
+      return JSON.parse(stored);
+    }
+    return [
+      {
+        role: "assistant",
+        content:
+          "Ahoj! 🦎 Jsem Alfonso, virtuální asistent kliniky VetExotic. Pomůžu ti s informacemi o otevírací době, objednání, pohotovosti nebo orientačních cenách. Pokud je situace akutní, napiš mi hned, a nasměruji tě správným směrem. 😊",
+        timestamp: Date.now(),
+      },
+    ];
+  });
 
-🏥 VetExotic – exotická veterinární klinika
-- Adresa: Klášterského 180/2A, Praha 12 – Modřany
-- Web: https://www.vetexotic.eu
-- Specializace: papoušci, plazi, drobní savci a další exoti
-- Hlavní lékař: MVDr. Sebastian Franco
+  const [loading, setLoading] = useState(false);
+  const [typingText, setTypingText] = useState("");
+  const typingTimeoutRef = useRef(null);
+  const chatEndRef = useRef(null);
 
-🕐 Ordinační doba (může se výjimečně měnit!)
-- Po–Pa: 08:00–20:00  
-- So–Ne: Zavřeno  
-➡️ Aktuální ordinační dobu ověř na https://vetexotic.vetbook.cloud/kalendar.php nebo ve spodní části webu.
+  useEffect(() => {
+    localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
+    localStorage.setItem("chatTimestamp", Date.now());
+  }, [chatHistory]);
 
-👨‍⚕️ Kdo kdy ordinuje?  
-➡️ Kompletní rozpis: https://vetexotic.vetbook.cloud/kdo-kdy-ordinuje.php
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory, typingText]);
 
-📅 Jak se objednat?
-- Online kalendář: https://vetexotic.vetbook.cloud/kalendar.php
-- Nápověda k objednání: https://vetexotic.vetbook.cloud/kalendar-napoveda.php
-- Telefon: +420 724 190 384
-
-📞 Pohotovostní linka:
-- WhatsApp / SMS pouze v urgentních případech: +420 702 932 214
-- Vždy uveď druh zvířete, věk, pohlaví a popis problému
-- Více info zde: https://vetexotic.eu/pohotovost/
-
-💸 Ceník – orientační info:
-- Základní vyšetření: 690 Kč  
-- Kontrolní vyšetření: 590 Kč  
-- Zabrušování zobáku: 490–690 Kč  
-- RTG: od 790 Kč  
-- Kastrace: 3500–9500 Kč  
-- Pohotovostní příplatek: 1000–5000 Kč  
-➡️ Kompletní ceník najdeš zde: https://vetexotic.eu/cenik/
-
-🛑 Pozor:
-Neposkytuji žádné diagnózy ani lékové rady. Pokud máš obavy o zdraví zvířete, obrať se na kliniku nebo volej recepci. Já ti mohu pomoci zorientovat se a nasměrovat tě dál.
-
-🎯 Můj cíl:
-Pomoci ti rychle, jasně a přátelsky. Ať už chceš rezervaci, info o ordinační době nebo orientační cenu – jsem tu pro tebe. 😊
-  `,
-};
-
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
-  }
-
-  const { message, history } = req.body;
-
-  if (!message) {
-    res.status(400).json({ error: "No message provided" });
-    return;
-  }
-
-  // Sestav pole zpráv pro OpenAI
-  // history je pole zpráv ve formátu [{role: "user"|"assistant", content: "text"}, ...]
-  // Přidáme systémovou zprávu na začátek a aktuální dotaz na konec
-  const messages = [
-    systemMessage,
-    ...(Array.isArray(history) ? history : []),
-    { role: "user", content: message },
-  ];
-
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages,
+  function animateTyping(fullText) {
+    return new Promise((resolve) => {
+      let i = 0;
+      if (typingTimeoutRef.current) clearInterval(typingTimeoutRef.current);
+      typingTimeoutRef.current = setInterval(() => {
+        i++;
+        setTypingText(fullText.substring(0, i));
+        if (i >= fullText.length) {
+          clearInterval(typingTimeoutRef.current);
+          resolve();
+        }
+      }, 20);
     });
-
-    res.status(200).json({ reply: completion.choices[0].message.content });
-  } catch (error) {
-    res.status(500).json({ error: error.message || "OpenAI API error" });
   }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    const newMessage = {
+      role: "user",
+      content: input,
+      timestamp: Date.now(),
+    };
+    const newHistory = [...chatHistory, newMessage];
+    setChatHistory(newHistory);
+    setInput("");
+    setLoading(true);
+    setTypingText("");
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: input,
+          history: newHistory,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        await animateTyping(data.reply);
+        setChatHistory([
+          ...newHistory,
+          {
+            role: "assistant",
+            content: data.reply,
+            timestamp: Date.now(),
+          },
+        ]);
+        setTypingText("");
+      } else {
+        setChatHistory([
+          ...newHistory,
+          {
+            role: "assistant",
+            content: "Chyba: " + data.error,
+            timestamp: Date.now(),
+          },
+        ]);
+      }
+    } catch (e) {
+      setChatHistory([
+        ...newHistory,
+        {
+          role: "assistant",
+          content: "Chyba připojení: " + e.message,
+          timestamp: Date.now(),
+        },
+      ]);
+    }
+
+    setLoading(false);
+  };
+
+  return (
+    <div className={styles.chatContainer}>
+      <div className={styles.chatBox}>
+        {chatHistory.map((msg, i) => (
+          <div
+            key={i}
+            className={`${styles.message} ${
+              msg.role === "user" ? styles.user : styles.assistant
+            }`}
+          >
+            <div className={styles.bubble}>
+              {formatMessage(msg.content)}
+              <div className={styles.timestamp}>
+                {formatTime(msg.timestamp)}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {loading && typingText && (
+          <div className={styles.message + " " + styles.assistant}>
+            <div className={styles.bubble}>
+              {formatMessage(typingText)}
+              <div className={styles.timestamp}>
+                {formatTime(Date.now())}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div ref={chatEndRef} />
+      </div>
+
+      <form className={styles.inputForm} onSubmit={handleSubmit}>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Napiš dotaz sem…"
+          disabled={loading}
+          className={styles.input}
+        />
+        <button
+          type="submit"
+          disabled={loading || !input.trim()}
+          className={styles.button}
+        >
+          Poslat
+        </button>
+      </form>
+    </div>
+  );
 }
