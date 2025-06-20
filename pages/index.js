@@ -1,29 +1,30 @@
-// pages/index.js
 import React, { useState } from "react";
-import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 export default function Home() {
   const [input, setInput] = useState("");
   const [response, setResponse] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
+    setLoading(true);
+    setResponse("");
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are a helpful VetExotic assistant." },
-          { role: "user", content: input },
-        ],
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: input }),
       });
-      setResponse(completion.choices[0].message.content);
-    } catch (error) {
-      setResponse("Error: " + error.message);
+      const data = await res.json();
+      if (res.ok) {
+        setResponse(data.reply);
+      } else {
+        setResponse("Error: " + data.error);
+      }
+    } catch (e) {
+      setResponse("Fetch error: " + e.message);
     }
+    setLoading(false);
   }
 
   return (
@@ -36,8 +37,11 @@ export default function Home() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Napište svůj dotaz..."
+          disabled={loading}
         />
-        <button type="submit">Odeslat</button>
+        <button type="submit" disabled={loading}>
+          {loading ? "Odesílám..." : "Odeslat"}
+        </button>
       </form>
       <pre style={{ whiteSpace: "pre-wrap", marginTop: 20 }}>{response}</pre>
     </div>
