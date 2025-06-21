@@ -1,64 +1,45 @@
-// pages/admin.js
-import { useEffect, useState } from "react";
+import React, { useState } from "react";
 import styles from "../components/Admin.module.css";
 
-export default function AdminDashboard() {
-  const [knowledge, setKnowledge] = useState([]);
-  const [newEntry, setNewEntry] = useState("");
-  const [loading, setLoading] = useState(false);
+export default function Admin() {
+  const [input, setInput] = useState("");
+  const [entries, setEntries] = useState([]);
 
-  useEffect(() => {
-    fetch("/api/knowledge")
-      .then((res) => res.json())
-      .then((data) => setKnowledge(data))
-      .catch((err) => console.error("Chyba nahrání znalostí:", err));
-  }, []);
+  const handleAdd = () => {
+    if (input.trim() === "") return;
+    setEntries([...entries, input.trim()]);
+    setInput("");
+    // TODO: přidej uložení do databáze zde
+  };
 
-  async function addEntry() {
-    if (!newEntry.trim()) return;
-    setLoading(true);
-    const res = await fetch("/api/knowledge", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entry: newEntry }),
-    });
-    const updated = await res.json();
-    setKnowledge(updated);
-    setNewEntry("");
-    setLoading(false);
-  }
-
-  async function deleteEntry(index) {
-    setLoading(true);
-    const res = await fetch("/api/knowledge", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ index }),
-    });
-    const updated = await res.json();
-    setKnowledge(updated);
-    setLoading(false);
-  }
+  const handleDelete = (index) => {
+    const updated = [...entries];
+    updated.splice(index, 1);
+    setEntries(updated);
+    // TODO: přidej mazání z databáze zde
+  };
 
   return (
-    <div className={styles.adminContainer}>
-      <h1>Admin Dashboard - Znalosti</h1>
-      <div className={styles.formGroup}>
-        <textarea
-          rows={4}
-          placeholder="Nový záznam znalosti..."
-          value={newEntry}
-          onChange={(e) => setNewEntry(e.target.value)}
-        />
-        <button onClick={addEntry} disabled={loading}>
-          {loading ? "Ukládám..." : "Přidat znalost"}
-        </button>
-      </div>
-      <ul className={styles.knowledgeList}>
-        {knowledge.map((entry, idx) => (
-          <li key={idx}>
-            <span>{entry}</span>
-            <button onClick={() => deleteEntry(idx)} disabled={loading}>
+    <div className={styles.container}>
+      <h1 className={styles.heading}>VetExotic Admin Panel</h1>
+      <textarea
+        className={styles.textarea}
+        placeholder="Zadej novou znalost nebo instrukci..."
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+      />
+      <button className={styles.addButton} onClick={handleAdd}>
+        Přidat
+      </button>
+
+      <ul className={styles.entryList}>
+        {entries.map((entry, index) => (
+          <li key={index} className={styles.entryItem}>
+            {entry}
+            <button
+              className={styles.deleteButton}
+              onClick={() => handleDelete(index)}
+            >
               Smazat
             </button>
           </li>
