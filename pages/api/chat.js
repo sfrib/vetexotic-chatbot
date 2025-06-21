@@ -1,4 +1,5 @@
-// /api/chat.js
+import fs from 'fs';
+import path from 'path';
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -7,30 +8,57 @@ export default async function handler(req, res) {
 
   const { message, history = [] } = req.body;
 
+  // ✳️ 1. Ukládání nových znalostí přes příkaz **interně//
+  if (message.startsWith("**interně//")) {
+    const newKnowledge = message.replace("**interně//", "").trim();
+    const filePath = path.resolve(process.cwd(), 'knowledge.json');
+
+    try {
+      const existing = fs.existsSync(filePath)
+        ? JSON.parse(fs.readFileSync(filePath, "utf-8"))
+        : [];
+
+      existing.push({
+        content: newKnowledge,
+        addedAt: new Date().toISOString(),
+      });
+
+      fs.writeFileSync(filePath, JSON.stringify(existing, null, 2), "utf-8");
+
+      return res.status(200).json({ reply: "✅ Nová znalost byla uložena do interní databáze." });
+    } catch (err) {
+      return res.status(500).json({ error: "❌ Chyba při ukládání znalosti." });
+    }
+  }
+
+  // ✳️ 2. Načítání znalostí z databáze knowledge.json
+  const filePath = path.resolve(process.cwd(), 'knowledge.json');
+  let dynamicKnowledgeText = "";
+
+  try {
+    if (fs.existsSync(filePath)) {
+      const knowledgeData = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      dynamicKnowledgeText = knowledgeData.map((item, i) => `• ${item.content}`).join("\n");
+    }
+  } catch (err) {
+    console.error("❌ Chyba při načítání knowledge.json:", err);
+  }
+
+  // ✳️ 3. Prompty
   const systemPrompt = {
     role: "system",
     content: `
-Jsi Alfonso, virtuální veterinární asistent kliniky VetExotic. Jsi specializovaný na exotická zvířata: papoušky, plazy (želvy, leguáni, hadi), drobné savce (fretky, králíky, ježky) a jiná netradiční domácí zvířata. 
+Jsi Alfonso, virtuální veterinární asistent kliniky VetExotic. Specializuješ se na exotická zvířata: papoušky, plazy, želvy, leguány, hady, drobné savce (fretky, králíky, ježky).
 
-🧠 Znalosti čerpáš z nejlepší dostupné veterinární praxe i odborných chovatelských zkušeností – chováš se jako špičkový odborník na medicínu i chov exotických zvířat.
+🧠 Znalosti čerpáš z nejlepší veterinární praxe a špičkových chovatelských zkušeností. Cílem je chránit život zvířat a pomoci majitelům.
 
-Tvým cílem je chránit život zvířete a pomáhat majitelům poskytovat správnou péči:
-- Pokud uživatel popisuje nemoc, odpovídej jako zkušený veterinář.
-- Pokud se ptá na podmínky chovu, odpovídej jako zkušený chovatel (vhodná UVB, krmení, vlhkost, enrichment, velikost terária atd.).
+🔍 Pokud je stav vážný, vysvětli riziko, doporuč kontakt na kliniku a varuj před odkladem.
 
-🔍 Pokud uživatel popisuje možný akutní stav, doporučuj přesné logické kroky:
-1. Popiš možné riziko daného symptomu (např. zvracení, letargie, apatie).
-2. Sděl, že stav může být závažný a vyžaduje odborné vyšetření.
-3. Navrhni neprodlený kontakt s VetExotic klinikou.
-4. Upozorni, že každé zdržení může být nebezpečné.
+🚫 Nikdy nedávej rady pro psy, kočky nebo lidi. Nepiš o lidských lécích nebo čajích.
 
-🚫 Nikdy neposkytuj rady vhodné pro psy, kočky nebo lidi. Například:
-- nedoporučuj bylinky nebo lidské léky bez odborného posouzení,
-- nedávej obecné rady typu „fenyklový čaj s citronem“.
+📆 Pokud je potřeba, nabídni pohotovostní linku nebo objednání.
 
-📆 Klinika VetExotic je dostupná pro pohotovost i konzultace. Pokud si nejsi jistý, nabídni kontakt, objednání nebo pohotovostní linku.
-
-💬 Odpovídej přátelsky, ale profesionálně. Vždy se zaměř na bezpečí zvířete a respektuj, že majitel může být ve stresu. 
+💬 Odpovídej přátelsky a klidně. Pomáhej logicky a jasně.
 `
   };
 
@@ -38,17 +66,17 @@ Tvým cílem je chránit život zvířete a pomáhat majitelům poskytovat sprá
     role: "user",
     content: `📌 Příklady situací:
 
-1. Papoušek zvrací a je nafouklý → možná dilatace volátka. Naléhavé. Nutné vyšetření co nejdříve.
+1. Papoušek zvrací a je nafouklý → možná dilatace volátka. Naléhavé.
 2. Fretka apatická a studená → možná hypoglykemie. Nutná urgentní pomoc.
 3. Želva neotvírá oči, nejí → možná avitaminóza nebo infekce. Nutná kontrola.
-4. Leguán má nateklé končetiny → možné metabolické onemocnění kostí. Nutný RTG a vyšetření.
-5. Papoušek si vytrhává peří → může být stres, bolest, nebo zdravotní problém. Nutné vyloučit infekci, parazity nebo stresory.
-6. Hadi odmítají potravu i po 4 týdnech → může být špatná teplota, nevhodné terárium nebo zdravotní problém.
-7. Králík přestal žrát a má nafouklé břicho → urgentní stav, možná torze žaludku nebo stasis. Nutný okamžitý zásah.
+4. Leguán má nateklé končetiny → metabolická choroba kostí.
+5. Papoušek si vytrhává peří → stres, bolest nebo parazité.
+6. Had nežere týdny → špatné podmínky nebo nemoc.
+7. Králík přestal žrát → stasis, torze, akutní riziko.
 
-Pokud není jistota: „Toto vyžaduje odborné vyšetření. Doporučuji kontaktovat kliniku co nejdříve.“
-
-Nikdy nedoporučuj lidské přípravky nebo čaje.`
+Další znalosti:
+${dynamicKnowledgeText}
+`
   };
 
   const messages = [
